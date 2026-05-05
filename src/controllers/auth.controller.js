@@ -38,25 +38,29 @@ const registerUser = asyncHandler(async (req, res) => {
         password,
         username,
         fullName,
-        isEmailVerified: false,
+        isEmailVerified: true, // ← skip verification for now
     });
 
-    const { unHashedToken, hashedToken, tokenExpiry } =
-        await user.generateTemporaryToken();
+    // Try email but don't fail if it doesn't work
+    try {
+        const { unHashedToken, hashedToken, tokenExpiry } =
+            await user.generateTemporaryToken();
 
-    user.emailVerificationToken = hashedToken;
-    user.emailVerificationExpiry = tokenExpiry;
+        user.emailVerificationToken = hashedToken;
+        user.emailVerificationExpiry = tokenExpiry;
+        await user.save({ validateBeforeSave: false });
 
-    await user.save({ validateBeforeSave: false });
-
-    await sendEmail({
-        email: user.email,
-        subject: "Please verify your email",
-        mailgenContent: emailVerificationMailgenContent(
-            user.username,
-            `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${unHashedToken}`
-        ),
-    });
+        await sendEmail({
+            email: user.email,
+            subject: "Please verify your email",
+            mailgenContent: emailVerificationMailgenContent(
+                user.username,
+                `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${unHashedToken}`
+            ),
+        });
+    } catch (emailError) {
+        console.log("Email sending failed:", emailError.message);
+    }
 
     const createdUser = await User.findById(user._id).select(
         "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
@@ -66,11 +70,10 @@ const registerUser = asyncHandler(async (req, res) => {
         new ApiResponse(
             201,
             { user: createdUser },
-            "User registered successfully. Please check your email."
+            "User registered successfully!"
         )
     );
 });
-
 const loginuser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
