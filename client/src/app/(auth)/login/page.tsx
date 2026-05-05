@@ -32,9 +32,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4 py-8">
       <Toaster position="top-right" />
-      <div className="bg-gray-900 p-8 rounded-2xl shadow-xl w-full max-w-md">
+      <div className="bg-gray-900 p-6 md:p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-white">ProjectFlow</h1>
           <p className="text-gray-400 mt-2">Sign in to your account</p>
@@ -55,7 +55,13 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Password</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm text-gray-400">Password</label>
+              <Link href="/forgot-password"
+                    className="text-blue-400 text-xs hover:underline">
+                    Forgot Password?
+              </Link>
+            </div>
             <input
               type="password"
               name="password"
