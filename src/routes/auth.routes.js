@@ -3,8 +3,12 @@ import { body } from "express-validator";
 import { registerUser, loginuser, logoutuser, getCurrentUser } from "../controllers/auth.controller.js";
 import { validatorMiddleware } from "../middlewares/validator.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { forgotPasswordRequest } from "../controllers/auth.controller.js";
+
 
 const router = express.Router();
+
+router.post("/forgot-password", forgotPasswordRequest);
 
 // register route
 router.post(
