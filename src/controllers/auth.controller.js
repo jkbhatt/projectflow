@@ -261,27 +261,21 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 });
 
 const forgotPasswordRequest = asyncHandler(async (req, res) => {
-    const { email } = req.body;
+  const { email } = req.body;
 
-    const user = await User.findOne({ email });
+  const user = await User.findOne({ email });
 
-    if (!user) {
-        throw new ApiError(404, "User does not exist", []);
-    }
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
 
-    const { unHashedToken, hashedToken, tokenExpiry } =
-        user.generateTemporaryToken();
-
-    user.forgotPasswordToken = hashedToken;
-    user.forgotPasswordExpiry = tokenExpiry;
-
-    await user.save({ validateBeforeSave: false });
-
-    res.status(200).json({
-        success: true,
-        message: "Password reset token generated",
-        token: unHashedToken // usually sent via email instead
-    });
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      null,
+      "If this email exists, a reset link will be sent."
+    )
+  );
 });
 
 
@@ -289,8 +283,9 @@ export {
   registerUser,
   loginuser,
   logoutuser,
-  getCurrentUser,  
+  getCurrentUser,
   verifyEmail,
   resendEmailVerification,
   refreshAccessToken,
-};
+  forgotPasswordRequest, 
+}
