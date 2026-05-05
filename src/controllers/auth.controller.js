@@ -38,29 +38,8 @@ const registerUser = asyncHandler(async (req, res) => {
         password,
         username,
         fullName,
-        isEmailVerified: true, // ← skip verification for now
+        isEmailVerified: true,
     });
-
-    // Try email but don't fail if it doesn't work
-    try {
-        const { unHashedToken, hashedToken, tokenExpiry } =
-            await user.generateTemporaryToken();
-
-        user.emailVerificationToken = hashedToken;
-        user.emailVerificationExpiry = tokenExpiry;
-        await user.save({ validateBeforeSave: false });
-
-        await sendEmail({
-            email: user.email,
-            subject: "Please verify your email",
-            mailgenContent: emailVerificationMailgenContent(
-                user.username,
-                `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${unHashedToken}`
-            ),
-        });
-    } catch (emailError) {
-        console.log("Email sending failed:", emailError.message);
-    }
 
     const createdUser = await User.findById(user._id).select(
         "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
