@@ -6,6 +6,7 @@ import { sendEmail, emailVerificationMailgenContent } from "../utils/mail.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto"; // ✅ missing import fixed
 import { validationResult } from "express-validator";
+import { sendEmail, emailVerificationMailgenContent, forgotPasswordMailgenContent } from "../utils/mail.js";
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
@@ -269,15 +270,63 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      null,
-      "If this email exists, a reset link will be sent."
-    )
-  );
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  user.forgotPasswordToken = hashedToken;
+  user.forgotPasswordExpiry = Date.now() + 15 * 60 * 1000;
+  await user.save({ validateBeforeSave: false });
+
+  const resetURL = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: "Reset your ProjectFlow password",
+      mailgenContent: forgotPasswordMailgenContent(user.username, resetURL),
+    });
+
+    return res.status(200).json(
+      new ApiResponse(200, null, "Password reset email sent!")
+    );
+  } catch (error) {
+    user.forgotPasswordToken = undefined;
+    user.forgotPasswordExpiry = undefined;
+    await user.save({ validateBeforeSave: false });
+    throw new ApiError(500, "Failed to send reset email. Try again.");
+  }
 });
 
+const resetForgottenPassword = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
+
+  const user = await User.findOne({
+    forgotPasswordToken: hashedToken,
+    forgotPasswordExpiry: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    throw new ApiError(400, "Reset token is invalid or expired");
+  }
+
+  user.password = password;
+  user.forgotPasswordToken = undefined;
+  user.forgotPasswordExpiry = undefined;
+  await user.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, null, "Password reset successfully! Please login.")
+  );
+});
 
 export {
   registerUser,
@@ -287,5 +336,6 @@ export {
   verifyEmail,
   resendEmailVerification,
   refreshAccessToken,
-  forgotPasswordRequest, 
-}
+  forgotPasswordRequest,
+  resetForgottenPassword, 
+};

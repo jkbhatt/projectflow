@@ -4,11 +4,14 @@ import { registerUser, loginuser, logoutuser, getCurrentUser } from "../controll
 import { validatorMiddleware } from "../middlewares/validator.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { forgotPasswordRequest } from "../controllers/auth.controller.js";
+import { resetForgottenPassword } from "../controllers/auth.controller.js";
 
 
 const router = express.Router();
 
 router.post("/forgot-password", forgotPasswordRequest);
+
+router.post("/reset-password/:token", resetForgottenPassword);
 
 // register route
 router.post(
