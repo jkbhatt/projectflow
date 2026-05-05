@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import api from "@/lib/api";
 import Sidebar from "@/components/layout/Sidebar";
 import toast, { Toaster } from "react-hot-toast";
-import { Plus, Trash2, Calendar, Pencil, X, Check } from "lucide-react";
+import { Plus, Trash2, Calendar, Pencil, X, Check, Search } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Task {
@@ -53,6 +53,10 @@ export default function ProjectDetailPage() {
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", priority: "medium", dueDate: "" });
+
+  // Search & Filter state
+  const [search, setSearch] = useState("");
+  const [filterPriority, setFilterPriority] = useState("all");
 
   // Edit state
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -110,7 +114,6 @@ export default function ProjectDetailPage() {
     }
   };
 
-  // Open edit form with current task values
   const handleEditOpen = (task: Task) => {
     setEditingTask(task);
     setEditForm({
@@ -121,7 +124,6 @@ export default function ProjectDetailPage() {
     });
   };
 
-  // Save edited task
   const handleEditSave = async () => {
     if (!editingTask) return;
     if (!editForm.title) return toast.error("Title is required");
@@ -138,7 +140,15 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const getTasksByStatus = (status: string) => tasks.filter((t) => t.status === status);
+  // ✅ Filter tasks by search + priority
+  const getFilteredTasks = (status: string) => {
+    return tasks.filter((t) => {
+      const matchesStatus = t.status === status;
+      const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase());
+      const matchesPriority = filterPriority === "all" || t.priority === filterPriority;
+      return matchesStatus && matchesSearch && matchesPriority;
+    });
+  };
 
   if (authLoading) {
     return (
@@ -155,7 +165,7 @@ export default function ProjectDetailPage() {
 
       <main className="flex-1 p-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-white">Project Board</h2>
             <p className="text-gray-400 text-sm mt-1">Manage your tasks</p>
@@ -167,6 +177,45 @@ export default function ProjectDetailPage() {
             <Plus size={16} />
             Add Task
           </button>
+        </div>
+
+        {/* Search & Filter Bar */}
+        <div className="flex gap-4 mb-8">
+          <div className="flex items-center gap-2 bg-gray-900 rounded-lg px-4 py-2.5 flex-1">
+            <Search size={16} className="text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search tasks..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="bg-transparent text-white outline-none w-full text-sm"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="text-gray-400 hover:text-white">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <select
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value)}
+            className="bg-gray-900 text-white rounded-lg px-4 py-2.5 outline-none text-sm"
+          >
+            <option value="all">All Priorities</option>
+            <option value="low">🟢 Low</option>
+            <option value="medium">🟡 Medium</option>
+            <option value="high">🔴 High</option>
+          </select>
+
+          {(search || filterPriority !== "all") && (
+            <button
+              onClick={() => { setSearch(""); setFilterPriority("all"); }}
+              className="bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white px-4 py-2.5 rounded-lg text-sm transition"
+            >
+              Clear
+            </button>
+          )}
         </div>
 
         {/* Create Task Form */}
@@ -303,29 +352,29 @@ export default function ProjectDetailPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-white font-semibold">{col.label}</h3>
                   <span className="bg-gray-800 text-gray-400 text-xs px-2 py-1 rounded-full">
-                    {getTasksByStatus(col.id).length}
+                    {getFilteredTasks(col.id).length}
                   </span>
                 </div>
 
                 <div className="space-y-3">
-                  {getTasksByStatus(col.id).length === 0 ? (
-                    <p className="text-gray-600 text-sm text-center py-6">No tasks here</p>
+                  {getFilteredTasks(col.id).length === 0 ? (
+                    <p className="text-gray-600 text-sm text-center py-6">
+                      {search || filterPriority !== "all" ? "No matching tasks" : "No tasks here"}
+                    </p>
                   ) : (
-                    getTasksByStatus(col.id).map((task) => {
+                    getFilteredTasks(col.id).map((task) => {
                       const dueDateInfo = getDueDateInfo(task.dueDate);
                       return (
                         <div key={task._id} className="bg-gray-800 rounded-xl p-4 space-y-3">
                           <div className="flex items-start justify-between">
                             <p className="text-white text-sm font-medium">{task.title}</p>
                             <div className="flex items-center gap-2 ml-2">
-                              {/* Edit button */}
                               <button
                                 onClick={() => handleEditOpen(task)}
                                 className="text-gray-500 hover:text-blue-400 transition"
                               >
                                 <Pencil size={13} />
                               </button>
-                              {/* Delete button */}
                               <button
                                 onClick={() => handleDelete(task._id)}
                                 className="text-gray-500 hover:text-red-500 transition"
