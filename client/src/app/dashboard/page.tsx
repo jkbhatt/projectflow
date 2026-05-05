@@ -5,8 +5,10 @@ import Sidebar from "@/components/layout/Sidebar";
 import { Toaster } from "react-hot-toast";
 import { FolderKanban, CheckSquare, Clock, Plus } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth"; // ← NEW
 
 export default function DashboardPage() {
+  const { user, loading: authLoading } = useAuth(); // ← NEW
   const [stats, setStats] = useState({
     totalProjects: 0,
     tasksDone: 0,
@@ -16,13 +18,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return; // ← NEW: wait for auth
     const fetchData = async () => {
       try {
         const res: any = await api.get("/projects");
         const projectList = res.data;
         setProjects(projectList);
 
-        // Count tasks across all projects
         let done = 0;
         let inProgress = 0;
 
@@ -46,28 +48,22 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, []);
+  }, [user]); // ← NEW: depend on user
 
   const statCards = [
-    {
-      label: "Total Projects",
-      value: stats.totalProjects,
-      icon: FolderKanban,
-      color: "bg-blue-600",
-    },
-    {
-      label: "Tasks Done",
-      value: stats.tasksDone,
-      icon: CheckSquare,
-      color: "bg-green-600",
-    },
-    {
-      label: "In Progress",
-      value: stats.tasksInProgress,
-      icon: Clock,
-      color: "bg-yellow-600",
-    },
+    { label: "Total Projects", value: stats.totalProjects, icon: FolderKanban, color: "bg-blue-600" },
+    { label: "Tasks Done", value: stats.tasksDone, icon: CheckSquare, color: "bg-green-600" },
+    { label: "In Progress", value: stats.tasksInProgress, icon: Clock, color: "bg-yellow-600" },
   ];
+
+  // ← NEW: Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen bg-gray-950 items-center justify-center">
+        <p className="text-gray-400 text-lg">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-950">
@@ -76,17 +72,15 @@ export default function DashboardPage() {
 
       <main className="flex-1 p-8">
         <h2 className="text-2xl font-bold text-white mb-2">Dashboard</h2>
-        <p className="text-gray-400 mb-8">Welcome back! Here's your overview.</p>
+        <p className="text-gray-400 mb-8">
+          Welcome back, {user?.username}! 👋  {/* ← NEW: show username */}
+        </p>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           {statCards.map((stat) => {
             const Icon = stat.icon;
             return (
-              <div
-                key={stat.label}
-                className="bg-gray-900 rounded-2xl p-6 flex items-center gap-4"
-              >
+              <div key={stat.label} className="bg-gray-900 rounded-2xl p-6 flex items-center gap-4">
                 <div className={`${stat.color} p-3 rounded-xl`}>
                   <Icon size={24} className="text-white" />
                 </div>
@@ -101,14 +95,10 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* Recent Projects */}
         <div className="bg-gray-900 rounded-2xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-white font-semibold text-lg">Recent Projects</h3>
-            <Link
-              href="/projects"
-              className="text-blue-400 text-sm hover:underline"
-            >
+            <Link href="/projects" className="text-blue-400 text-sm hover:underline">
               View all →
             </Link>
           </div>
@@ -138,13 +128,11 @@ export default function DashboardPage() {
                     <div className="bg-blue-600 w-2 h-2 rounded-full" />
                     <span className="text-white font-medium">{project.name}</span>
                   </div>
-                  <span
-                    className={`text-xs px-3 py-1 rounded-full ${
-                      project.status === "active"
-                        ? "bg-green-900 text-green-400"
-                        : "bg-gray-700 text-gray-400"
-                    }`}
-                  >
+                  <span className={`text-xs px-3 py-1 rounded-full ${
+                    project.status === "active"
+                      ? "bg-green-900 text-green-400"
+                      : "bg-gray-700 text-gray-400"
+                  }`}>
                     {project.status}
                   </span>
                 </Link>

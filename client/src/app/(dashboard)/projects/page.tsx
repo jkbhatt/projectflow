@@ -4,6 +4,7 @@ import api from "@/lib/api";
 import Sidebar from "@/components/layout/Sidebar";
 import toast, { Toaster } from "react-hot-toast";
 import { Trash2, Plus } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Project {
   _id: string;
@@ -14,6 +15,8 @@ interface Project {
 }
 
 export default function ProjectsPage() {
+  // ✅ ALL hooks at the top - no conditions before them
+  const { loading: authLoading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -32,8 +35,9 @@ export default function ProjectsPage() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
     fetchProjects();
-  }, []);
+  }, [authLoading]);
 
   const handleCreate = async () => {
     if (!form.name) return toast.error("Project name is required");
@@ -60,6 +64,15 @@ export default function ProjectsPage() {
       toast.error("Failed to delete");
     }
   };
+
+  // ✅ Conditions AFTER all hooks
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen bg-gray-950 items-center justify-center">
+        <p className="text-gray-400 text-lg">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-950">
