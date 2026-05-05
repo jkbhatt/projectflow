@@ -75,3 +75,37 @@ export const deleteTask = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const createTask = async (req, res) => {
+  try {
+    const { title, description, priority, dueDate } = req.body;
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: "Title is required",
+      });
+    }
+
+    const task = await Task.create({
+      title,
+      description,
+      priority,
+      dueDate: dueDate || null,
+      project: req.params.projectId,
+      assignedTo: req.user._id,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Task created",
+      data: task,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

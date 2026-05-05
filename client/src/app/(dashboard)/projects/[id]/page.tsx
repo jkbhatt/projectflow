@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import api from "@/lib/api";
 import Sidebar from "@/components/layout/Sidebar";
 import toast, { Toaster } from "react-hot-toast";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Calendar } from "lucide-react";
 
 interface Task {
   _id: string;
@@ -12,6 +12,7 @@ interface Task {
   description: string;
   status: "todo" | "in-progress" | "done";
   priority: "low" | "medium" | "high";
+  dueDate: string | null;
 }
 
 const columns = [
@@ -26,6 +27,30 @@ const priorityColors: Record<string, string> = {
   high: "bg-red-900 text-red-400",
 };
 
+// ← NEW: Due date helper function
+const getDueDateInfo = (dueDate: string | null) => {
+  if (!dueDate) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return { label: "Overdue!", color: "text-red-400" };
+  if (diffDays === 0) return { label: "Due Today!", color: "text-yellow-400" };
+  if (diffDays === 1) return { label: "Due Tomorrow", color: "text-orange-400" };
+  return {
+    label: new Date(dueDate).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    color: "text-gray-400",
+  };
+};
+
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -36,6 +61,7 @@ export default function ProjectDetailPage() {
     title: "",
     description: "",
     priority: "medium",
+    dueDate: "",   // ← NEW
   });
 
   const fetchTasks = async () => {
@@ -59,7 +85,7 @@ export default function ProjectDetailPage() {
     try {
       await api.post(`/projects/${id}/tasks`, form);
       toast.success("Task created!");
-      setForm({ title: "", description: "", priority: "medium" });
+      setForm({ title: "", description: "", priority: "medium", dueDate: "" });
       setShowForm(false);
       fetchTasks();
     } catch (err: any) {
@@ -101,7 +127,7 @@ export default function ProjectDetailPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-bold text-white">Project Board</h2>
-            <p className="text-gray-400 text-sm mt-1">Drag tasks between columns</p>
+            <p className="text-gray-400 text-sm mt-1">Manage your tasks</p>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
@@ -131,15 +157,30 @@ export default function ProjectDetailPage() {
                 className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 rows={2}
               />
-              <select
-                value={form.priority}
-                onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                className="bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="low">🟢 Low Priority</option>
-                <option value="medium">🟡 Medium Priority</option>
-                <option value="high">🔴 High Priority</option>
-              </select>
+              <div className="flex gap-4">
+                <select
+                  value={form.priority}
+                  onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                  className="bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="low">🟢 Low Priority</option>
+                  <option value="medium">🟡 Medium Priority</option>
+                  <option value="high">🔴 High Priority</option>
+                </select>
+
+                {/* ← NEW: Due date picker */}
+                <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-4 py-3">
+                  <Calendar size={16} className="text-gray-400" />
+                  <input
+                    type="date"
+                    value={form.dueDate}
+                    onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+                    className="bg-transparent text-white outline-none"
+                    min={new Date().toISOString().split("T")[0]}
+                  />
+                </div>
+              </div>
+
               <div className="flex gap-3">
                 <button
                   onClick={handleCreate}
@@ -182,42 +223,56 @@ export default function ProjectDetailPage() {
                       No tasks here
                     </p>
                   ) : (
-                    getTasksByStatus(col.id).map((task) => (
-                      <div
-                        key={task._id}
-                        className="bg-gray-800 rounded-xl p-4 space-y-3"
-                      >
-                        <div className="flex items-start justify-between">
-                          <p className="text-white text-sm font-medium">{task.title}</p>
-                          <button
-                            onClick={() => handleDelete(task._id)}
-                            className="text-gray-600 hover:text-red-500 transition ml-2"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                    getTasksByStatus(col.id).map((task) => {
+                      const dueDateInfo = getDueDateInfo(task.dueDate);
+                      return (
+                        <div
+                          key={task._id}
+                          className="bg-gray-800 rounded-xl p-4 space-y-3"
+                        >
+                          <div className="flex items-start justify-between">
+                            <p className="text-white text-sm font-medium">
+                              {task.title}
+                            </p>
+                            <button
+                              onClick={() => handleDelete(task._id)}
+                              className="text-gray-600 hover:text-red-500 transition ml-2"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+
+                          {task.description && (
+                            <p className="text-gray-400 text-xs">{task.description}</p>
+                          )}
+
+                          {/* ← NEW: Due date display */}
+                          {dueDateInfo && (
+                            <div className="flex items-center gap-1">
+                              <Calendar size={12} className={dueDateInfo.color} />
+                              <span className={`text-xs font-medium ${dueDateInfo.color}`}>
+                                {dueDateInfo.label}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs px-2 py-1 rounded-full ${priorityColors[task.priority]}`}>
+                              {task.priority}
+                            </span>
+                            <select
+                              value={task.status}
+                              onChange={(e) => handleStatusChange(task._id, e.target.value)}
+                              className="bg-gray-700 text-gray-300 text-xs rounded-lg px-2 py-1 outline-none"
+                            >
+                              <option value="todo">Todo</option>
+                              <option value="in-progress">In Progress</option>
+                              <option value="done">Done</option>
+                            </select>
+                          </div>
                         </div>
-
-                        {task.description && (
-                          <p className="text-gray-400 text-xs">{task.description}</p>
-                        )}
-
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs px-2 py-1 rounded-full ${priorityColors[task.priority]}`}>
-                            {task.priority}
-                          </span>
-
-                          <select
-                            value={task.status}
-                            onChange={(e) => handleStatusChange(task._id, e.target.value)}
-                            className="bg-gray-700 text-gray-300 text-xs rounded-lg px-2 py-1 outline-none"
-                          >
-                            <option value="todo">Todo</option>
-                            <option value="in-progress">In Progress</option>
-                            <option value="done">Done</option>
-                          </select>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
