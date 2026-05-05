@@ -4,7 +4,8 @@ import { useParams } from "next/navigation";
 import api from "@/lib/api";
 import Sidebar from "@/components/layout/Sidebar";
 import toast, { Toaster } from "react-hot-toast";
-import { Plus, Trash2, Calendar } from "lucide-react";
+import { Plus, Trash2, Calendar, Pencil, X, Check } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Task {
   _id: string;
@@ -27,42 +28,36 @@ const priorityColors: Record<string, string> = {
   high: "bg-red-900 text-red-400",
 };
 
-// ← NEW: Due date helper function
 const getDueDateInfo = (dueDate: string | null) => {
   if (!dueDate) return null;
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const due = new Date(dueDate);
   due.setHours(0, 0, 0, 0);
-
   const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
   if (diffDays < 0) return { label: "Overdue!", color: "text-red-400" };
   if (diffDays === 0) return { label: "Due Today!", color: "text-yellow-400" };
   if (diffDays === 1) return { label: "Due Tomorrow", color: "text-orange-400" };
   return {
-    label: new Date(dueDate).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }),
+    label: new Date(dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
     color: "text-gray-400",
   };
 };
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
+  const { loading: authLoading } = useAuth();
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    priority: "medium",
-    dueDate: "",   // ← NEW
-  });
+  const [form, setForm] = useState({ title: "", description: "", priority: "medium", dueDate: "" });
+
+  // Edit state
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editForm, setEditForm] = useState({ title: "", description: "", priority: "medium", dueDate: "" });
+  const [saving, setSaving] = useState(false);
 
   const fetchTasks = async () => {
     try {
@@ -76,8 +71,9 @@ export default function ProjectDetailPage() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
     fetchTasks();
-  }, [id]);
+  }, [id, authLoading]);
 
   const handleCreate = async () => {
     if (!form.title) return toast.error("Title is required");
@@ -114,8 +110,43 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const getTasksByStatus = (status: string) =>
-    tasks.filter((t) => t.status === status);
+  // Open edit form with current task values
+  const handleEditOpen = (task: Task) => {
+    setEditingTask(task);
+    setEditForm({
+      title: task.title,
+      description: task.description || "",
+      priority: task.priority,
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split("T")[0] : "",
+    });
+  };
+
+  // Save edited task
+  const handleEditSave = async () => {
+    if (!editingTask) return;
+    if (!editForm.title) return toast.error("Title is required");
+    setSaving(true);
+    try {
+      await api.put(`/projects/${id}/tasks/${editingTask._id}`, editForm);
+      toast.success("Task updated!");
+      setEditingTask(null);
+      fetchTasks();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getTasksByStatus = (status: string) => tasks.filter((t) => t.status === status);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen bg-gray-950 items-center justify-center">
+        <p className="text-gray-400 text-lg">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-950">
@@ -167,8 +198,6 @@ export default function ProjectDetailPage() {
                   <option value="medium">🟡 Medium Priority</option>
                   <option value="high">🔴 High Priority</option>
                 </select>
-
-                {/* ← NEW: Due date picker */}
                 <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-4 py-3">
                   <Calendar size={16} className="text-gray-400" />
                   <input
@@ -176,11 +205,9 @@ export default function ProjectDetailPage() {
                     value={form.dueDate}
                     onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
                     className="bg-transparent text-white outline-none"
-                    min={new Date().toISOString().split("T")[0]}
                   />
                 </div>
               </div>
-
               <div className="flex gap-3">
                 <button
                   onClick={handleCreate}
@@ -200,16 +227,79 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
+        {/* Edit Task Modal */}
+        {editingTask && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+            <div className="bg-gray-900 rounded-2xl p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-semibold text-lg">Edit Task</h3>
+                <button onClick={() => setEditingTask(null)} className="text-gray-400 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="Task title"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <textarea
+                  placeholder="Description (optional)"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  rows={2}
+                />
+                <div className="flex gap-4">
+                  <select
+                    value={editForm.priority}
+                    onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
+                    className="bg-gray-800 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="low">🟢 Low</option>
+                    <option value="medium">🟡 Medium</option>
+                    <option value="high">🔴 High</option>
+                  </select>
+                  <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-4 py-3">
+                    <Calendar size={16} className="text-gray-400" />
+                    <input
+                      type="date"
+                      value={editForm.dueDate}
+                      onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
+                      className="bg-transparent text-white outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleEditSave}
+                    disabled={saving}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                  >
+                    <Check size={16} />
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button
+                    onClick={() => setEditingTask(null)}
+                    className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Kanban Board */}
         {loading ? (
           <div className="text-gray-400 text-center mt-20">Loading tasks...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {columns.map((col) => (
-              <div
-                key={col.id}
-                className={`bg-gray-900 rounded-2xl p-5 border-t-4 ${col.color}`}
-              >
+              <div key={col.id} className={`bg-gray-900 rounded-2xl p-5 border-t-4 ${col.color}`}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-white font-semibold">{col.label}</h3>
                   <span className="bg-gray-800 text-gray-400 text-xs px-2 py-1 rounded-full">
@@ -219,34 +309,36 @@ export default function ProjectDetailPage() {
 
                 <div className="space-y-3">
                   {getTasksByStatus(col.id).length === 0 ? (
-                    <p className="text-gray-600 text-sm text-center py-6">
-                      No tasks here
-                    </p>
+                    <p className="text-gray-600 text-sm text-center py-6">No tasks here</p>
                   ) : (
                     getTasksByStatus(col.id).map((task) => {
                       const dueDateInfo = getDueDateInfo(task.dueDate);
                       return (
-                        <div
-                          key={task._id}
-                          className="bg-gray-800 rounded-xl p-4 space-y-3"
-                        >
+                        <div key={task._id} className="bg-gray-800 rounded-xl p-4 space-y-3">
                           <div className="flex items-start justify-between">
-                            <p className="text-white text-sm font-medium">
-                              {task.title}
-                            </p>
-                            <button
-                              onClick={() => handleDelete(task._id)}
-                              className="text-gray-600 hover:text-red-500 transition ml-2"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            <p className="text-white text-sm font-medium">{task.title}</p>
+                            <div className="flex items-center gap-2 ml-2">
+                              {/* Edit button */}
+                              <button
+                                onClick={() => handleEditOpen(task)}
+                                className="text-gray-500 hover:text-blue-400 transition"
+                              >
+                                <Pencil size={13} />
+                              </button>
+                              {/* Delete button */}
+                              <button
+                                onClick={() => handleDelete(task._id)}
+                                className="text-gray-500 hover:text-red-500 transition"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           </div>
 
                           {task.description && (
                             <p className="text-gray-400 text-xs">{task.description}</p>
                           )}
 
-                          {/* ← NEW: Due date display */}
                           {dueDateInfo && (
                             <div className="flex items-center gap-1">
                               <Calendar size={12} className={dueDateInfo.color} />

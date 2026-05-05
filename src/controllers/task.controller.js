@@ -92,3 +92,26 @@ export const deleteTask = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Update task 
+export const updateTask = async ( req,res) => {
+  try {
+    const { title , description , priority , dueDate } = req.body;
+
+    const task = await Task.findByIdAndUpdate (
+      req.params.taskId,
+      { title , description , priority , dueDate },
+      { new: true }
+    );
+    if (!task){
+      return res.status(404).json({success: false , message : "Task not found "});
+    }
+    res.status(200).json({
+      success:true,
+      message:"Task updated",
+      date: task,
+    });
+  } catch ( arror ){
+    res.status(500).json({success: false, message: error.message });
+  }
+};
