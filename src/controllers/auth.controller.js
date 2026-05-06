@@ -2,11 +2,10 @@ import { User } from "../models/user.models.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { sendEmail, emailVerificationMailgenContent } from "../utils/mail.js";
-import jwt from "jsonwebtoken";
-import crypto from "crypto"; // ✅ missing import fixed
-import { validationResult } from "express-validator";
 import { sendEmail, emailVerificationMailgenContent, forgotPasswordMailgenContent } from "../utils/mail.js";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { validationResult } from "express-validator";
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {

@@ -16,12 +16,28 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
+  // ✅ ALL hooks at top
   const { loading: authLoading } = useAuth();
-
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Auth loading check
+  // ✅ useEffect before any conditions
+  useEffect(() => {
+    if (authLoading) return;
+    const fetchProfile = async () => {
+      try {
+        const res: any = await api.get("/auth/me");
+        setUser(res.data.user);
+      } catch {
+        toast.error("Failed to fetch profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [authLoading]);
+
+  // ✅ conditions after all hooks
   if (authLoading) {
     return (
       <div className="flex min-h-screen bg-gray-950 items-center justify-center">
@@ -29,21 +45,6 @@ export default function ProfilePage() {
       </div>
     );
   }
-
-  const fetchProfile = async () => {
-    try {
-      const res: any = await api.get("/auth/me");
-      setUser(res.data.user);
-    } catch {
-      toast.error("Failed to fetch profile");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProfile();
-  }, []);
 
   return (
     <div className="flex min-h-screen bg-gray-950">

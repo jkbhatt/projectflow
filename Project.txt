@@ -3,3 +3,16 @@
 ⚙️ Backend: https://projectflow-8a1i.onrender.com
 
 📦 GitHub:  https://github.com/jkbhatt/projectflow
+
+Terminal 1 — Backend:
+powershellcd : 
+
+E:\JS\PROJECTMANAGEMENT
+npm run dev
+
+Terminal 2 — Frontend:
+powershellcd 
+
+E:\JS\PROJECTMANAGEMENT\client
+npm run dev
+Then open http://localhost:3000 in browser!
