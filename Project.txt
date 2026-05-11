@@ -16,3 +16,17 @@ powershellcd
 E:\JS\PROJECTMANAGEMENT\client
 npm run dev
 Then open http://localhost:3000 in browser!
+
+
+✅ Full Stack App (Next.js + Express + MongoDB)
+✅ Complete Auth System (JWT + Cookies)
+✅ Forgot/Reset Password (Gmail SMTP)
+✅ Project Management (CRUD)
+✅ Kanban Board (Todo/In Progress/Done)
+✅ Task Management (create/edit/delete)
+✅ Due Dates with Overdue Detection
+✅ Search & Filter Tasks
+✅ User Profile Page
+✅ Route Protection
+✅ Mobile Responsive
+✅ Deployed to Internet
